@@ -2,23 +2,80 @@
 import React, { useState } from "react";
 import { formSchema } from "./form.schema";
 import { FormEvent } from "react";
-import { ToastContainer, toast } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { ZodError } from "zod";
 
 const Form = () => {
+  const [zodError, setZodError] = useState<any>(null);
+  const deafaultForm = {
+    name: "",
+    description: "",
+    owner: "",
+    startDate: "",
+    endDate: "",
+    status: "",
+    phase: "",
+    phaseStartDate: "",
+    phaseEndDate: "",
+    phaseStatus: "",
+    templates: "",
+    file: null,
+  };
+
+  const [formState, setFormState] = useState(deafaultForm);
+
+  const handleChange = (e) => {
+    const { name, type, files } = e.target;
+
+    if (type === "file") {
+      setFormState({
+        ...formState,
+        [name]: files[0],
+      });
+    } else if (name === "startDate" || name === "endDate") {
+      if (formState.phaseEndDate || formState.phaseStartDate) {
+        toast.error("select phase date values again", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+        });
+
+        setFormState({
+          ...formState,
+          [name]: e.target.value,
+          phaseEndDate: "",
+          phaseStartDate: "",
+        });
+      } else {
+        setFormState({
+          ...formState,
+          [name]: e.target.value,
+        });
+      }
+    } else {
+      setFormState({
+        ...formState,
+        [name]: e.target.value,
+      });
+    }
+
+    setZodError({
+      ...zodError,
+      [name]: null,
+    });
+    console.log(formState);
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const formData = new FormData(e.currentTarget);
 
-    const formObject: Record<any, any> = {};
-
-    for (const [key, value] of formData.entries()) {
-      formObject[key] = value;
-    }
-
     try {
-      formSchema.parse(formObject);
+      formSchema.parse(formState);
       const response = await fetch("http://localhost:3001/deal/create", {
         method: "POST",
         body: formData,
@@ -26,6 +83,30 @@ const Form = () => {
 
       if (response.ok) {
         toast.success("deal created successfully!", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+        });
+        setZodError(null);
+      } else {
+        toast.error("error creating deal", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+        });
+
+        setZodError(null);
+      }
+    } catch (error) {
+      if (error instanceof ZodError) {
+        setZodError(error.format());
+        console.log(zodError);
+
+        toast.error("form validation error", {
           position: "top-right",
           autoClose: 3000,
           hideProgressBar: false,
@@ -40,16 +121,8 @@ const Form = () => {
           closeOnClick: true,
           pauseOnHover: true,
         });
+        setZodError(null);
       }
-    } catch (error) {
-      console.log("zod validation failed:", error);
-      toast.error("form validation error", {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-      });
     }
   };
 
@@ -73,7 +146,7 @@ const Form = () => {
   return (
     <form onSubmit={handleSubmit} className="w-full">
       <h2 className="text-3xl ml-3">Deal Summary</h2>
-      <div className="flex flex-col mb-3">
+      <div className="flex flex-col h-20">
         <label htmlFor="name" className="ml-3">
           Deal Name:
         </label>
@@ -81,10 +154,19 @@ const Form = () => {
           type="text"
           id="name"
           name="name"
-          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 "
+          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 h-9 shadow-md placeholder-black "
+          placeholder="Deal Name"
+          value={formState.name}
+          onChange={handleChange}
+          required
         />
+        {zodError?.name?._errors[0] && (
+          <span className="ml-3 text-red-500 text-xs">
+            *{zodError.name._errors[0]}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col mb-3">
+      <div className="flex flex-col h-20">
         <label htmlFor="description" className="ml-3">
           Deal Description:
         </label>
@@ -92,10 +174,19 @@ const Form = () => {
           type="text"
           id="description"
           name="description"
-          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 "
+          value={formState.description}
+          onChange={handleChange}
+          placeholder="Description"
+          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 h-9 shadow-md placeholder-black"
+          required
         />
+        {zodError?.description?._errors[0] && (
+          <span className="ml-3 text-red-500 text-xs">
+            *{zodError.description._errors[0]}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col mb-3">
+      <div className="flex flex-col h-20">
         <label htmlFor="owner" className="ml-3">
           Deal Owner:
         </label>
@@ -103,10 +194,19 @@ const Form = () => {
           type="text"
           id="owner"
           name="owner"
-          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 "
+          placeholder="Deal Owner"
+          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 h-9 shadow-md placeholder-black"
+          value={formState.owner}
+          onChange={handleChange}
+          required
         />
+        {zodError?.owner?._errors[0] && (
+          <span className="ml-3 text-red-500 text-xs">
+            *{zodError.owner._errors[0]}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col mb-3">
+      <div className="flex flex-col h-20">
         <label htmlFor="startDate" className="ml-3">
           Deal Start Date:
         </label>
@@ -114,10 +214,19 @@ const Form = () => {
           type="date"
           id="startDate"
           name="startDate"
-          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 "
+          value={formState.startDate}
+          max={formState.endDate}
+          onChange={handleChange}
+          required
+          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 h-9 shadow-md "
         />
+        {zodError?.startDate?._errors[0] && (
+          <span className="ml-3 text-red-500 text-xs">
+            *{zodError.startDate._errors[0]}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col mb-3">
+      <div className="flex flex-col h-20">
         <label htmlFor="endDate" className="ml-3">
           Deal End Date:
         </label>
@@ -125,17 +234,29 @@ const Form = () => {
           type="date"
           id="endDate"
           name="endDate"
-          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 "
+          value={formState.endDate}
+          onChange={handleChange}
+          min={formState.startDate}
+          required
+          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 h-9 shadow-md "
         />
+        {zodError?.endDate?._errors[0] && (
+          <span className="ml-3 text-red-500 text-xs">
+            *{zodError.endDate._errors[0]}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col mb-3">
+      <div className="flex flex-col h-20">
         <label htmlFor="status" className="ml-3">
           Status:
         </label>
         <select
           id="status"
           name="status"
-          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 "
+          value={formState.status}
+          onChange={handleChange}
+          required
+          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 h-9 shadow-md "
         >
           {statusOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -143,18 +264,26 @@ const Form = () => {
             </option>
           ))}
         </select>
+        {zodError?.status?._errors[0] && (
+          <span className="ml-3 text-red-500 text-xs">
+            *{zodError.status._errors[0]}
+          </span>
+        )}
       </div>
       <br />
 
       <h2 className="text-3xl ml-3">Phase Information</h2>
-      <div className="flex flex-col mb-3">
+      <div className="flex flex-col h-20">
         <label htmlFor="phase" className="ml-3">
           Deal Phase:
         </label>
         <select
           id="phase"
           name="phase"
-          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 "
+          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 h-9 shadow-md "
+          value={formState.phase}
+          onChange={handleChange}
+          required
         >
           {phaseOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -162,8 +291,13 @@ const Form = () => {
             </option>
           ))}
         </select>
+        {zodError?.phase?._errors[0] && (
+          <span className="ml-3 text-red-500 text-xs">
+            *{zodError.phase._errors[0]}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col mb-3">
+      <div className="flex flex-col mb-3 h-20">
         <label htmlFor="phaseStartDate" className="ml-3">
           Phase Start Date:
         </label>
@@ -171,10 +305,27 @@ const Form = () => {
           type="date"
           id="phaseStartDate"
           name="phaseStartDate"
-          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 "
+          required
+          value={formState.phaseStartDate}
+          disabled={!formState.endDate || !formState.startDate}
+          min={formState.startDate}
+          max={formState.phaseEndDate || formState.endDate}
+          onChange={handleChange}
+          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 h-9 shadow-md "
         />
+        {(!formState.endDate || !formState.startDate) && (
+          <span className="ml-3 text-red-500 text-xs">
+            *Please select deal start date and end date
+          </span>
+        )}
+        {zodError?.phaseStartDate?._errors[0] && (
+          <span className="ml-3 text-red-500 text-xs">
+            *{zodError.phaseStartDate._errors[0]}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col mb-3">
+
+      <div className="flex flex-col h-20">
         <label htmlFor="phaseEndDate" className="ml-3">
           Phase End Date:
         </label>
@@ -182,17 +333,36 @@ const Form = () => {
           type="date"
           id="phaseEndDate"
           name="phaseEndDate"
-          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 "
+          required
+          value={formState.phaseEndDate}
+          disabled={!formState.endDate || !formState.startDate}
+          min={formState.phaseStartDate || formState.phaseEndDate}
+          max={formState.endDate}
+          onChange={handleChange}
+          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 h-9 shadow-md"
         />
+        {(!formState.endDate || !formState.startDate) && (
+          <span className="ml-3 text-red-500 text-xs">
+            *Please select deal start date and end date
+          </span>
+        )}
+        {zodError?.phaseEndDate?._errors[0] && (
+          <span className="ml-3 text-red-500 text-xs">
+            *{zodError.phaseEndDate._errors[0]}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col mb-3">
+      <div className="flex flex-col h-20">
         <label htmlFor="phaseStatus" className="ml-3">
           Phase Staus:
         </label>
         <select
           id="phaseStatus"
           name="phaseStatus"
-          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 "
+          required
+          value={formState.phaseStatus}
+          onChange={handleChange}
+          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 h-9 shadow-md "
         >
           {statusOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -200,15 +370,23 @@ const Form = () => {
             </option>
           ))}
         </select>
+        {zodError?.phaseStatus?._errors[0] && (
+          <span className="ml-3 text-red-500 text-xs">
+            *{zodError.phaseStatus._errors[0]}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col mb-3">
+      <div className="flex flex-col h-20">
         <label htmlFor="templates" className="ml-3">
           Template :
         </label>
         <select
           id="templates"
           name="templates"
-          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 "
+          required
+          value={formState.templates}
+          onChange={handleChange}
+          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 h-9 shadow-md "
         >
           {templateOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -216,8 +394,13 @@ const Form = () => {
             </option>
           ))}
         </select>
+        {zodError?.templates?._errors[0] && (
+          <span className="ml-3 text-red-500 text-xs">
+            *{zodError.templates._errors[0]}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col mb-3">
+      <div className="flex flex-col h-20">
         <label htmlFor="file" className="ml-3">
           Upload File:
         </label>
@@ -225,8 +408,14 @@ const Form = () => {
           type="file"
           id="file"
           name="file"
-          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 "
+          onChange={handleChange}
+          className=" px-2 py-1 ml-3 text-md text-gray-800 border border-gray-300 rounded-lg w-1/5 h-9 shadow-md "
         />
+        {zodError?.file?._errors[0] && (
+          <span className="ml-3 text-red-500 text-xs">
+            *{zodError.file._errors[0]}
+          </span>
+        )}
       </div>
 
       <button
