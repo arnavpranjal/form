@@ -1,14 +1,11 @@
+import React from "react";
+import Form from "./form";
 
-import Image from "next/image";
-import React from 'react';
-import Form from './form';
-import { ToastContainer, toast } from 'react-toastify';
+import { Toaster } from "@/components/ui/toaster";
 export default function Home() {
-   
   return (
-     <div>
-      <ToastContainer />
-      <h1 className="text-3xl bg-green-500 text-white p-1">MergerWare</h1>
+    <div>
+      <Toaster />
       <Form />
     </div>
   );
